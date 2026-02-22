@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ESP32 Minimal Dashboard</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+  <header class="header">
+    <img class="logo" src="/logo" alt="HTL St. Pölten logo" />
+    <div class="titles">
+      <h1>ESP32 Minimal Dashboard</h1>
+      <p class="subtitle">WebSocket • LittleFS • Multi-client sync</p>
+    </div>
+  </header>
+
+  <main class="card">
+    <div class="row">
+      <span class="label">LED state</span>
+      <span class="value" id="state">%STATE%</span>
+    </div>
+
+    <div class="row">
+      <span class="label">ESP uptime (mm:ss)</span>
+      <span class="value" id="espTime">--:--</span>
+    </div>
+
+    <div class="actions">
+      <button id="toggleBtn" class="btn">Toggle</button>
+    </div>
+
+    <p class="hint">
+      Tip: Open this page on multiple devices/browsers. When one client toggles the LED,
+      all connected clients will update.
+    </p>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
