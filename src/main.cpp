@@ -5,9 +5,7 @@
 //                                                                      қuran feb 2026
 ***************************************************************************************/
 
-
-
-/*******************************************************************
+/**************************************************************************************
     LoLin32 (ESP32) - Minimal reusable STA + WebSocket template
 
     Goals (simplified project skeleton)
@@ -26,7 +24,7 @@
       and sends {min,sec} to the ESP32, which prints it to Serial.
 
     Wolfgang Uriel / HTL reuse template
-*******************************************************************/
+***************************************************************************************/
 
 #include <Arduino.h>
 
@@ -46,13 +44,15 @@
 // Example (platformio.ini):
 //   build_flags = -DWIFI_SSID=\"MySSID\" -DWIFI_PASS=\"MyPass\"
 
-#ifndef WIFI_SSID
-  #define WIFI_SSID "YOUR_SSID"
-#endif
+//#ifndef WIFI_SSID
+//  #define WIFI_SSID ""
+  #define WIFI_SSID "Wolfgang Uriel Kurans Handy"
+//#endif
 
-#ifndef WIFI_PASS
-  #define WIFI_PASS "YOUR_PASSWORD"
-#endif
+//#ifndef WIFI_PASS
+//  #define WIFI_PASS ""
+  #define WIFI_PASS "x1234567"
+//#endif
 
 // -----------------------------------------------------------------
 // Hardware
@@ -91,8 +91,8 @@ AsyncWebSocket ws("/ws");
 
 enum SystemState : uint8_t
 {
-  	STATE_OFF = 0,
-  	STATE_ON  = 1
+    STATE_OFF = 0,
+     STATE_ON  = 1
 };
 
 static volatile bool g_flagFiveSeconds = false;   // set in ISR, consumed in loop
@@ -110,14 +110,14 @@ static volatile uint32_t g_uptimeSeconds = 0;
 
 static inline void writeOnboardLed(bool on)
 {
-  if (LED_ACTIVE_LOW)
-  {
-    digitalWrite(ONBOARD_LED_PIN, on ? LOW : HIGH);
-  }
-  else
-  {
-    digitalWrite(ONBOARD_LED_PIN, on ? HIGH : LOW);
-  }
+    if (LED_ACTIVE_LOW)
+    {
+        digitalWrite(ONBOARD_LED_PIN, on ? LOW : HIGH);
+    }
+    else
+    {
+        digitalWrite(ONBOARD_LED_PIN, on ? HIGH : LOW);
+    }
 }
 
 // -----------------------------------------------------------------
@@ -126,12 +126,12 @@ static inline void writeOnboardLed(bool on)
 
 static void initLittleFS()
 {
-  if (!LittleFS.begin(true))
-  {
-    Serial.println("[FS] LittleFS mount failed");
-    return;
-  }
-  Serial.println("[FS] LittleFS mounted");
+    if (!LittleFS.begin(true))
+    {
+        Serial.println("[FS] LittleFS mount failed");
+        return;
+      }
+    Serial.println("[FS] LittleFS mounted");
 }
 
 // -----------------------------------------------------------------
@@ -140,28 +140,28 @@ static void initLittleFS()
 
 static void initWiFi()
 {
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(WIFI_SSID, WIFI_PASS);
+    WiFi.mode(WIFI_STA);
+    WiFi.begin(WIFI_SSID, WIFI_PASS);
 
-  Serial.print("[WiFi] Connecting");
-  uint8_t tries = 0;
-  while (WiFi.status() != WL_CONNECTED && tries < 20)
-  {
-    delay(500);
-    Serial.print('.');
-    tries++;
-  }
-  Serial.println();
+    Serial.print("[WiFi] Connecting");
+    uint8_t tries = 0;
+    while (WiFi.status() != WL_CONNECTED && tries < 20)
+    {
+        delay(500);
+        Serial.print('.');
+        tries++;
+    }
+    Serial.println();
 
-  if (WiFi.status() == WL_CONNECTED)
-  {
-    Serial.print("[WiFi] Connected. IP: ");
-    Serial.println(WiFi.localIP());
-  }
-  else
-  {
-    Serial.println("[WiFi] Not connected (check SSID/PASS)");
-  }
+    if (WiFi.status() == WL_CONNECTED)
+    {
+        Serial.print("[WiFi] Connected. IP: ");
+        Serial.println(WiFi.localIP());
+    }
+    else
+    {
+        Serial.println("[WiFi] Not connected (check SSID/PASS)");
+    }
 }
 
 // -----------------------------------------------------------------
@@ -170,11 +170,11 @@ static void initWiFi()
 
 static String processor(const String &var)
 {
-  if (var == "STATE")
-  {
-    return (g_state == STATE_ON) ? "ON" : "OFF";
-  }
-  return String();
+    if (var == "STATE")
+    {
+        return (g_state == STATE_ON) ? "ON" : "OFF";
+    }
+    return String();
 }
 
 // -----------------------------------------------------------------
@@ -183,29 +183,29 @@ static String processor(const String &var)
 
 static void wsBroadcastLedState()
 {
-  StaticJsonDocument<96> doc;
-  doc["type"]  = "led";
-  doc["state"] = (g_state == STATE_ON);
+    StaticJsonDocument<96> doc;
+    doc["type"]  = "led";
+    doc["state"] = (g_state == STATE_ON);
 
-  String out;
-  serializeJson(doc, out);
-  ws.textAll(out);
+    String out;
+    serializeJson(doc, out);
+    ws.textAll(out);
 }
 
 static void wsBroadcastUptimeMmSs()
 {
-  const uint32_t seconds = g_uptimeSeconds; // snapshot
-  const uint32_t min = seconds / 60;
-  const uint32_t sec = seconds % 60;
+    const uint32_t seconds = g_uptimeSeconds; // snapshot
+    const uint32_t min = seconds / 60;
+    const uint32_t sec = seconds % 60;
 
-  StaticJsonDocument<128> doc;
-  doc["type"] = "time";
-  doc["min"]  = min;
-  doc["sec"]  = sec;
+    StaticJsonDocument<128> doc;
+    doc["type"] = "time";
+    doc["min"]  = min;
+    doc["sec"]  = sec;
 
-  String out;
-  serializeJson(doc, out);
-  ws.textAll(out);
+    String out;
+    serializeJson(doc, out);
+    ws.textAll(out);
 }
 
 // -----------------------------------------------------------------
@@ -214,46 +214,46 @@ static void wsBroadcastUptimeMmSs()
 
 static void handleWebSocketMessage(void *arg, uint8_t *data, size_t len)
 {
-  AwsFrameInfo *info = reinterpret_cast<AwsFrameInfo *>(arg);
-  if (!(info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT))
-  {
-    return;
-  }
+    AwsFrameInfo *info = reinterpret_cast<AwsFrameInfo *>(arg);
+    if (!(info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT))
+    {
+        return;
+    }
 
   // Make a safe copy
-  String msg;
-  msg.reserve(len + 1);
-  for (size_t i = 0; i < len; i++) msg += static_cast<char>(data[i]);
+    String msg;
+    msg.reserve(len + 1);
+    for (size_t i = 0; i < len; i++) msg += static_cast<char>(data[i]);
 
   // Backward compatibility: accept the old "bON" / "bOFF" commands
-  if (msg == "bON")
-  {
-    g_ledRequested = true;
-    g_ledRequestPending = true;
-    return;
-  }
-  if (msg == "bOFF")
-  {
-    g_ledRequested = false;
-    g_ledRequestPending = true;
-    return;
-  }
+    if (msg == "bON")
+    {
+        g_ledRequested = true;
+        g_ledRequestPending = true;
+        return;
+    }
+    if (msg == "bOFF")
+    {
+        g_ledRequested = false;
+        g_ledRequestPending = true;
+        return;
+    }
 
   // Preferred: JSON messages
-  StaticJsonDocument<256> doc;
-  DeserializationError err = deserializeJson(doc, msg);
-  if (err)
-  {
-    Serial.print("[WS] JSON parse failed: ");
-    Serial.println(err.c_str());
-    return;
-  }
+    StaticJsonDocument<256> doc;
+    DeserializationError err = deserializeJson(doc, msg);
+    if (err)
+    {
+        Serial.print("[WS] JSON parse failed: ");
+        Serial.println(err.c_str());
+        return;
+    }
 
-  const char *type = doc["type"] | "";
+    const char *type = doc["type"] | "";
 
-  // Button command from browser
-  if (strcmp(type, "button") == 0)
-  {
+    // Button command from browser
+    if (strcmp(type, "button") == 0)
+    {
     // Desired LED state
     const bool desired = doc["state"] | false;
     g_ledRequested = desired;
@@ -265,7 +265,7 @@ static void handleWebSocketMessage(void *arg, uint8_t *data, size_t len)
     Serial.printf("[BrowserTime] %lu:%02lu\n",
                   static_cast<unsigned long>(bMin),
                   static_cast<unsigned long>(bSec));
-  }
+    }
 }
 
 static void onEvent(AsyncWebSocket *serverPtr,
@@ -275,37 +275,37 @@ static void onEvent(AsyncWebSocket *serverPtr,
                     uint8_t *data,
                     size_t len)
 {
-  (void)serverPtr;
+    (void)serverPtr;
 
-  switch (type)
-  {
-    case WS_EVT_CONNECT:
-      Serial.printf("[WS] Client #%u connected from %s\n",
+    switch (type)
+    {
+        case WS_EVT_CONNECT:
+            Serial.printf("[WS] Client #%u connected from %s\n",
                     client->id(), client->remoteIP().toString().c_str());
-      // Immediately sync the new client
-      wsBroadcastLedState();
-      wsBroadcastUptimeMmSs();
-      break;
+            // Immediately sync the new client
+            wsBroadcastLedState();
+            wsBroadcastUptimeMmSs();
+        break;
 
-    case WS_EVT_DISCONNECT:
-      Serial.printf("[WS] Client #%u disconnected\n", client->id());
-      break;
+        case WS_EVT_DISCONNECT:
+            Serial.printf("[WS] Client #%u disconnected\n", client->id());
+        break;
 
-    case WS_EVT_DATA:
-      handleWebSocketMessage(arg, data, len);
-      break;
+        case WS_EVT_DATA:
+            handleWebSocketMessage(arg, data, len);
+        break;
 
-    case WS_EVT_PONG:
-    case WS_EVT_ERROR:
-    default:
-      break;
-  }
+        case WS_EVT_PONG:
+        case WS_EVT_ERROR:
+        default:
+        break;
+    }
 }
 
 static void initWebSocket()
 {
-  ws.onEvent(onEvent);
-  server.addHandler(&ws);
+    ws.onEvent(onEvent);
+    server.addHandler(&ws);
 }
 
 // -----------------------------------------------------------------
@@ -316,31 +316,31 @@ static hw_timer_t *g_timer = nullptr;
 
 static void IRAM_ATTR onTimer()
 {
-  static uint32_t tick5s = 0;
-  static uint32_t tick1s = 0;
+    static uint32_t tick5s = 0;
+    static uint32_t tick1s = 0;
 
-  tick5s++;
-  tick1s++;
+    tick5s++;
+    tick1s++;
 
-  if (tick1s >= 10000) // 1 second (10,000 * 0.1 ms)
-  {
-    tick1s = 0;
-    g_uptimeSeconds++;
-  }
+    if (tick1s >= 10000) // 1 second (10,000 * 0.1 ms)
+    {
+        tick1s = 0;
+        g_uptimeSeconds++;
+    }
 
-  if (tick5s >= TICKS_5S)
-  {
-    tick5s = 0;
-    g_flagFiveSeconds = true;
-  }
+    if (tick5s >= TICKS_5S)
+    {
+        tick5s = 0;
+        g_flagFiveSeconds = true;
+    }
 }
 
 static void initTimer()
 {
-  g_timer = timerBegin(0, TIMER_PRESCALER, true);
-  timerAttachInterrupt(g_timer, &onTimer, true);
-  timerAlarmWrite(g_timer, TIMER_ALARM_US, true);
-  timerAlarmEnable(g_timer);
+    g_timer = timerBegin(0, TIMER_PRESCALER, true);
+    timerAttachInterrupt(g_timer, &onTimer, true);
+    timerAlarmWrite(g_timer, TIMER_ALARM_US, true);
+    timerAlarmEnable(g_timer);
 }
 
 // -----------------------------------------------------------------
@@ -349,69 +349,69 @@ static void initTimer()
 
 void setup()
 {
-  Serial.begin(115200);
-  delay(50);
-  Serial.println("\n[BOOT] Minimal LoLin32 template");
+    Serial.begin(115200);
+    delay(50);
+    Serial.println("\n[BOOT] Minimal LoLin32 template");
 
-  pinMode(ONBOARD_LED_PIN, OUTPUT);
-  writeOnboardLed(false);
+    pinMode(ONBOARD_LED_PIN, OUTPUT);
+    writeOnboardLed(false);
 
-  initTimer();
-  initLittleFS();
-  initWiFi();
-  initWebSocket();
+    initTimer();
+    initLittleFS();
+    initWiFi();
+    initWebSocket();
 
-  // Root page with template processor
-  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request)
-  {
-    request->send(LittleFS, "/index.html", "text/html", false, processor);
-  });
+    // Root page with template processor
+    server.on("/", HTTP_GET, [](AsyncWebServerRequest *request)
+    {
+        request->send(LittleFS, "/index.html", "text/html", false, processor);
+    });
 
-  // Serve static assets (CSS/JS/etc.) from LittleFS
-  server.serveStatic("/", LittleFS, "/");
+    // Serve static assets (CSS/JS/etc.) from LittleFS
+    server.serveStatic("/", LittleFS, "/");
 
-  // Logo: explicit endpoint with a lambda
-  server.on("/logo", HTTP_GET, [](AsyncWebServerRequest *request)
-  {
-    request->send(LittleFS, "/logo.png", "image/png");
-  });
+    // Logo: explicit endpoint with a lambda
+    server.on("/logo", HTTP_GET, [](AsyncWebServerRequest *request)
+    {
+        request->send(LittleFS, "/logo.png", "image/png");
+    });
 
-  server.begin();
-  Serial.println("[HTTP] Server started");
+    server.begin();
+    Serial.println("[HTTP] Server started");
 }
 
 void loop()
 {
-  ws.cleanupClients();
+    ws.cleanupClients();
 
-  // --- Apply pending LED requests (set by WebSocket handler) ------
-  if (g_ledRequestPending)
-  {
-    g_ledRequestPending = false;
+    // --- Apply pending LED requests (set by WebSocket handler) ------
+    if (g_ledRequestPending)
+    {
+        g_ledRequestPending = false;
 
-    g_state = g_ledRequested ? STATE_ON : STATE_OFF;
-    writeOnboardLed(g_state == STATE_ON);
+        g_state = g_ledRequested ? STATE_ON : STATE_OFF;
+        writeOnboardLed(g_state == STATE_ON);
 
-    // Broadcast to ALL clients so everyone stays in sync
-    wsBroadcastLedState();
-  }
+        // Broadcast to ALL clients so everyone stays in sync
+        wsBroadcastLedState();
+    }
 
-  // --- Every 5 seconds: send time as JSON to browser --------------
-  if (g_flagFiveSeconds)
-  {
-    g_flagFiveSeconds = false;
-    wsBroadcastUptimeMmSs();
-  }
+    // --- Every 5 seconds: send time as JSON to browser --------------
+    if (g_flagFiveSeconds)
+    {
+        g_flagFiveSeconds = false;
+        wsBroadcastUptimeMmSs();
+    }
 
-  // --- Tiny state machine placeholder -----------------------------
-  switch (g_state)
-  {
-    case STATE_OFF:
-      // nothing
-      break;
+    // --- Tiny state machine placeholder -----------------------------
+    switch (g_state)
+    {
+        case STATE_OFF:
+            // nothing
+        break;
 
-    case STATE_ON:
-      // nothing
-      break;
-  }
+        case STATE_ON:
+            // nothing
+        break;
+    }
 }
