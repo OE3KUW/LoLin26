@@ -68,6 +68,8 @@ function onMessage(payload) {
 function refreshButtonLabel() {
   const btn = document.getElementById('toggleBtn');
   btn.textContent = ledIsOn ? 'Turn OFF' : 'Turn ON';
+  console.log('refreshButtonLabel!');
+  console.log(btn.textContent);
 }
 
 function onToggleClicked() {

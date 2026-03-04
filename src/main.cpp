@@ -7,22 +7,6 @@
 
 /**************************************************************************************
     LoLin32 (ESP32) - Minimal reusable STA + WebSocket template
-
-    Goals (simplified project skeleton)
-    - WiFi STA mode (multiple clients may connect)
-    - AsyncWebServer + AsyncWebSocket
-    - LittleFS (NOT SPIFFS)
-    - One single ON/OFF button in the browser toggles the on-board LED
-      * The browser sends a JSON message to the ESP32
-      * "processor()" is still used for %STATE% placeholders
-      * The WebSocket handler only sets a flag (no direct hardware writes)
-      * The loop() runs a tiny state machine (STATE_ON / STATE_OFF)
-    - A hardware timer interrupt runs periodically and sets a flag every 5 s
-      * loop() detects the flag and broadcasts JSON {min,sec} to ALL clients
-      * JS unwraps JSON and updates an element in the HTML
-    - Additionally: When the button is pressed, JS reads the browser time
-      and sends {min,sec} to the ESP32, which prints it to Serial.
-
     Wolfgang Uriel / HTL reuse template
 ***************************************************************************************/
 
@@ -45,13 +29,11 @@
 //   build_flags = -DWIFI_SSID=\"MySSID\" -DWIFI_PASS=\"MyPass\"
 
 //#ifndef WIFI_SSID
-//  #define WIFI_SSID ""
-  #define WIFI_SSID "Wolfgang Uriel Kurans Handy"
+  #define WIFI_SSID "..."
 //#endif
 
 //#ifndef WIFI_PASS
-//  #define WIFI_PASS ""
-  #define WIFI_PASS "x1234567"
+  #define WIFI_PASS "..."
 //#endif
 
 // -----------------------------------------------------------------
@@ -89,20 +71,17 @@ AsyncWebSocket ws("/ws");
 // State machine
 // -----------------------------------------------------------------
 
-enum SystemState : uint8_t
-{
-    STATE_OFF = 0,
-     STATE_ON  = 1
-};
+#define STATE_OFF                       0
+#define STATE_ON                        1
 
-static volatile bool g_flagFiveSeconds = false;   // set in ISR, consumed in loop
-static volatile bool g_ledRequested = false;      // set by WebSocket handler
-static volatile bool g_ledRequestPending = false; // set by WebSocket handler
+static volatile bool flagFiveSeconds = false;   // set in ISR, consumed in loop
+static volatile bool ledRequested = false;      // set by WebSocket handler
+static volatile bool ledRequestPending = false; // set by WebSocket handler
 
-static SystemState g_state = STATE_OFF;
+static uint32_t state = STATE_OFF;
 
 // time base (simple "uptime" in seconds)
-static volatile uint32_t g_uptimeSeconds = 0;
+static volatile uint32_t uptimeSeconds = 0;
 
 // -----------------------------------------------------------------
 // Helper: LED write with optional inversion
@@ -130,7 +109,7 @@ static void initLittleFS()
     {
         Serial.println("[FS] LittleFS mount failed");
         return;
-      }
+    }
     Serial.println("[FS] LittleFS mounted");
 }
 
@@ -141,11 +120,17 @@ static void initLittleFS()
 static void initWiFi()
 {
     WiFi.mode(WIFI_STA);
+    WiFi.setAutoReconnect(true);
+    WiFi.persistent(false);
+
+    delay(500);                 // give radio/stack time
+
+
     WiFi.begin(WIFI_SSID, WIFI_PASS);
 
     Serial.print("[WiFi] Connecting");
     uint8_t tries = 0;
-    while (WiFi.status() != WL_CONNECTED && tries < 20)
+    while (WiFi.status() != WL_CONNECTED && tries < 30)
     {
         delay(500);
         Serial.print('.');
@@ -172,7 +157,7 @@ static String processor(const String &var)
 {
     if (var == "STATE")
     {
-        return (g_state == STATE_ON) ? "ON" : "OFF";
+        return (state == STATE_ON) ? "ON" : "OFF";
     }
     return String();
 }
@@ -183,9 +168,9 @@ static String processor(const String &var)
 
 static void wsBroadcastLedState()
 {
-    StaticJsonDocument<96> doc;
+    StaticJsonDocument<96> doc;  // 96 Byte werden hier reserviert. 
     doc["type"]  = "led";
-    doc["state"] = (g_state == STATE_ON);
+    doc["state"] = (state == STATE_ON);
 
     String out;
     serializeJson(doc, out);
@@ -194,7 +179,7 @@ static void wsBroadcastLedState()
 
 static void wsBroadcastUptimeMmSs()
 {
-    const uint32_t seconds = g_uptimeSeconds; // snapshot
+    const uint32_t seconds = uptimeSeconds; // snapshot
     const uint32_t min = seconds / 60;
     const uint32_t sec = seconds % 60;
 
@@ -225,20 +210,6 @@ static void handleWebSocketMessage(void *arg, uint8_t *data, size_t len)
     msg.reserve(len + 1);
     for (size_t i = 0; i < len; i++) msg += static_cast<char>(data[i]);
 
-  // Backward compatibility: accept the old "bON" / "bOFF" commands
-    if (msg == "bON")
-    {
-        g_ledRequested = true;
-        g_ledRequestPending = true;
-        return;
-    }
-    if (msg == "bOFF")
-    {
-        g_ledRequested = false;
-        g_ledRequestPending = true;
-        return;
-    }
-
   // Preferred: JSON messages
     StaticJsonDocument<256> doc;
     DeserializationError err = deserializeJson(doc, msg);
@@ -256,8 +227,8 @@ static void handleWebSocketMessage(void *arg, uint8_t *data, size_t len)
     {
     // Desired LED state
     const bool desired = doc["state"] | false;
-    g_ledRequested = desired;
-    g_ledRequestPending = true;
+    ledRequested = desired;
+    ledRequestPending = true;
 
     // Browser time (min/sec) => print to Serial
     const uint32_t bMin = doc["browser"]["min"] | 0;
@@ -312,7 +283,7 @@ static void initWebSocket()
 // Timer ISR
 // -----------------------------------------------------------------
 
-static hw_timer_t *g_timer = nullptr;
+static hw_timer_t *timer = nullptr;
 
 static void IRAM_ATTR onTimer()
 {
@@ -325,22 +296,22 @@ static void IRAM_ATTR onTimer()
     if (tick1s >= 10000) // 1 second (10,000 * 0.1 ms)
     {
         tick1s = 0;
-        g_uptimeSeconds++;
+        uptimeSeconds++;
     }
 
     if (tick5s >= TICKS_5S)
     {
         tick5s = 0;
-        g_flagFiveSeconds = true;
+        flagFiveSeconds = true;
     }
 }
 
 static void initTimer()
 {
-    g_timer = timerBegin(0, TIMER_PRESCALER, true);
-    timerAttachInterrupt(g_timer, &onTimer, true);
-    timerAlarmWrite(g_timer, TIMER_ALARM_US, true);
-    timerAlarmEnable(g_timer);
+    timer = timerBegin(0, TIMER_PRESCALER, true);
+    timerAttachInterrupt(timer, &onTimer, true);
+    timerAlarmWrite(timer, TIMER_ALARM_US, true);
+    timerAlarmEnable(timer);
 }
 
 // -----------------------------------------------------------------
@@ -357,9 +328,21 @@ void setup()
     writeOnboardLed(false);
 
     initTimer();
-    initLittleFS();
+    initLittleFS();   // File System
     initWiFi();
     initWebSocket();
+
+    // Logo: explicit endpoint with a lambda
+    server.on("/logo", HTTP_GET, [](AsyncWebServerRequest *request)
+    {
+        request->send(LittleFS, "/logo.png", "image/png");
+    });
+
+    // Optional: stop browser favicon spam (return "No Content")
+    server.on("/favicon.ico", HTTP_GET, [](AsyncWebServerRequest *request)
+    {
+        request->send(204);
+    });
 
     // Root page with template processor
     server.on("/", HTTP_GET, [](AsyncWebServerRequest *request)
@@ -370,41 +353,36 @@ void setup()
     // Serve static assets (CSS/JS/etc.) from LittleFS
     server.serveStatic("/", LittleFS, "/");
 
-    // Logo: explicit endpoint with a lambda
-    server.on("/logo", HTTP_GET, [](AsyncWebServerRequest *request)
-    {
-        request->send(LittleFS, "/logo.png", "image/png");
-    });
-
+    
     server.begin();
     Serial.println("[HTTP] Server started");
 }
 
 void loop()
 {
-    ws.cleanupClients();
+    ws.cleanupClients();  // entfernt nicht mehr vorhandene Clients
 
     // --- Apply pending LED requests (set by WebSocket handler) ------
-    if (g_ledRequestPending)
+    if (ledRequestPending)
     {
-        g_ledRequestPending = false;
+        ledRequestPending = false;
 
-        g_state = g_ledRequested ? STATE_ON : STATE_OFF;
-        writeOnboardLed(g_state == STATE_ON);
+        state = ledRequested ? STATE_ON : STATE_OFF;
+        writeOnboardLed(state == STATE_ON);
 
         // Broadcast to ALL clients so everyone stays in sync
         wsBroadcastLedState();
     }
 
     // --- Every 5 seconds: send time as JSON to browser --------------
-    if (g_flagFiveSeconds)
+    if (flagFiveSeconds)
     {
-        g_flagFiveSeconds = false;
+        flagFiveSeconds = false;
         wsBroadcastUptimeMmSs();
     }
 
     // --- Tiny state machine placeholder -----------------------------
-    switch (g_state)
+    switch (state)
     {
         case STATE_OFF:
             // nothing
